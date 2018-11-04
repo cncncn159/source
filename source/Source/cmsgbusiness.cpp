@@ -34,6 +34,8 @@ QString CMsgBusiness::get(void) const
 }
 void CMsgBusiness::timerEvent(QTimerEvent * event)
 {
+	sFrameData seddata = { 0,0 };//要发送的数据
+
 	if (event->timerId() == timer_id)
 	{
 		if (work_stage == E_WORK_STAGE)
@@ -45,7 +47,8 @@ void CMsgBusiness::timerEvent(QTimerEvent * event)
 			if (heart_time >= HEART_WAIT_TIME)
 			{
 				//发送心跳
-
+				sedDeal(E_FRAME_HEARTBEAT, seddata);//发送结构体赋值函数
+				sedFramePack(sedFrame);//结构体打包成数组帧函数
 			}
 		}
 	}
@@ -89,6 +92,7 @@ void CMsgBusiness::sedFramePack(sFrame frame)
 			sedArry.data()[7 + i] = frame.FrameData.data[i];
 		}
 	}
+	sedArry.data()[frame.FrameData.len + 7u] = frame.tail;
 }
 /* 返回1：成功收到数据 0：解析失败*/
 uint8_t CMsgBusiness::dataDeal(QByteArray msg)
@@ -147,7 +151,7 @@ uint8_t CMsgBusiness::dataDeal(QByteArray msg)
 	}
 	return ret;
 }
-
+/*收到数据 处理函数*/
 uint8_t CMsgBusiness::appDeal(sFrame frame)
 {
 	uint8_t ret;
@@ -156,6 +160,30 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 	switch (type)
 	{
 	case E_FRAME_HANDSHAKE:
+	{
+		if (work_stage == E_INIT_STAGE)
+		{
+			if (versionJudgement(protocol_data) == 1u)
+			{
+				if (protocol_data.FrameData.data[0] == 1u)
+				{//返回确认正确
+					work_stage = E_WORK_STAGE;
+				}
+				else
+				{
+					//需要增加错误处理
+				}
+			}
+		}
+		else if (work_stage == E_WORK_STAGE)
+		{
+			
+		}
+		else
+		{}
+		break;
+	}
+	case E_FRAME_HEARTBEAT:
 	{
 		if (work_stage == E_INIT_STAGE)
 		{
@@ -169,6 +197,21 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 	}
 	default:
 		break;
+	}
+	return ret;
+}
+
+uint8_t CMsgBusiness::versionJudgement(sFrame frame)
+{
+	uint8_t ret = 0;
+	/*暂时只判断硬件版本*/
+	if (frame.hard == LGJType)
+	{
+		ret = 1u;
+	}
+	else
+	{
+		ret = 0;
 	}
 	return ret;
 }

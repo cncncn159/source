@@ -71,16 +71,17 @@ public:
 
 private:
 	sFrame protocol_data;
-	uint8_t dataDeal(QByteArray);
-	uint8_t appDeal(sFrame frame);
+	uint8_t dataDeal(QByteArray);//接收到的帧数据解析处理
+	uint8_t appDeal(sFrame frame);//接收到数据后的操作
+	uint8_t versionJudgement(sFrame frame);//判断软件硬件版本号
 	eWorkingStage work_stage;
 	uint16_t timer_id;
 	uint16_t heart_time;
 	/*发送部分*/
 	sFrame sedFrame;
 	QByteArray sedArry;
-	void sedDeal(eFrameType type,sFrameData data);
-	void sedFramePack(sFrame frame);
+	void sedDeal(eFrameType type,sFrameData data);//发送结构体赋值函数
+	void sedFramePack(sFrame frame);//结构体打包成数组帧函数
 signals:
     //处理完的Msg发到界面上去显示
     void signalSomethingComing(QByteArray);
