@@ -43,6 +43,9 @@
     <ClCompile Include="cbridge.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="cmsgbusiness.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="cmsgbusiness.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -86,12 +89,24 @@
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
+    
+    
+    
+    
+    
+    
     <CustomBuild Include="debug\moc_predefs.h.cbt">
       <Filter>Generated Files</Filter>
     </CustomBuild>
     <CustomBuild Include="release\moc_predefs.h.cbt">
       <Filter>Generated Files</Filter>
     </CustomBuild>
+    
+    
+    
+    
+    
+    
     <ClInclude Include="ui_scantest.h">
       <Filter>Generated Files</Filter>
     </ClInclude>

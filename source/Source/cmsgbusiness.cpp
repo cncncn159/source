@@ -36,13 +36,57 @@ void CMsgBusiness::timerEvent(QTimerEvent * event)
 {
 	if (event->timerId() == timer_id)
 	{
-		if (heart_time <= 0xffffu)
+		if (work_stage == E_WORK_STAGE)
 		{
-			heart_time++;
+			if (heart_time <= 0xffffu)
+			{
+				heart_time++;
+			}
+			if (heart_time >= HEART_WAIT_TIME)
+			{
+				//发送心跳
+
+			}
 		}
-		if (heart_time >= HEART_WAIT_TIME)
+	}
+}
+/*发送帧处理*/
+void CMsgBusiness::sedDeal(eFrameType type,sFrameData data)
+{
+	sedFrame.header = FRAME_HEX_HEADER;
+	sedFrame.version = SOFEWAVE_VERSION;
+	sedFrame.hard = LGJType;
+	sedFrame.tail = FRAME_HEX_TAIL;
+	switch (type)
+	{
+	case E_FRAME_HEARTBEAT:
+	{
+		sedFrame.len = 0x04u;
+		sedFrame.FrameData.len = sedFrame.len - FRAME_LEN_DIFF;
+		//心跳帧不包含数据
+		break;
+	}
+	default:
+		break;
+	}
+}
+/*帧打包函数*/
+void CMsgBusiness::sedFramePack(sFrame frame)
+{
+	uint16_t len = frame.len + 4u;
+	sedArry.resize(len);
+	sedArry.data()[0] = frame.header;
+	sedArry.data()[1] = static_cast<uint8_t>(frame.len);
+	sedArry.data()[2] = static_cast<uint8_t>(frame.len >> 8u);
+	sedArry.data()[3] = static_cast<uint8_t>(frame.type);
+	sedArry.data()[4] = frame.version;
+	sedArry.data()[5] = static_cast<uint8_t>(frame.hard);
+	sedArry.data()[6] = static_cast<uint8_t>(frame.hard >> 8u);
+	if ((frame.FrameData.len != 0)&&(frame.FrameData.len+7u<=len))
+	{
+		for (uint16_t i = 0; i < frame.FrameData.len; i++)
 		{
-			//发送心跳
+			sedArry.data()[7 + i] = frame.FrameData.data[i];
 		}
 	}
 }
@@ -119,7 +163,7 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 		}
 		else if (work_stage == E_WORK_STAGE)
 		{
-			heart_ret_time = 0;
+			heart_time = 0;
 		}
 		break;
 	}

@@ -1,10 +1,26 @@
 #ifndef CMSGBUSINESS_H
 #define CMSGBUSINESS_H
 
+//***********************************量革机的型号************************************************
+// 	#define	LGJType 140		//量革机的型号		//特别说明：140型的图片借用150
+// 	#define	LGJType 150		//量革机的型号
+#define	LGJType 180u		//量革机的型号		//默认硬件版本
+//	#define	LGJType 200		//量革机的型号
+//	#define	LGJType 220		//量革机的型号
+//	#define	LGJType 240		//量革机的型号
+//	#define	LGJType 256		//量革机的型号
+//	#define	LGJType 280		//量革机的型号
+//	#define	LGJType 300		//量革机的型号
+//	#define	LGJType 320		//量革机的型号
+
 #include <QObject>
 
-#define FRAME_HEX_HEADER 	0x68
-#define FRAME_HEX_TAIL		0x7f 
+#define FRAME_HEX_HEADER 	0x68u
+#define FRAME_HEX_TAIL		0x7fu
+
+#define SOFEWAVE_VERSION	0x00
+#define FRAME_LEN_DIFF		4u
+
 #define TIMER_TIMEOUT		1000u
 #define HEART_WAIT_TIME		5u
 
@@ -60,6 +76,11 @@ private:
 	eWorkingStage work_stage;
 	uint16_t timer_id;
 	uint16_t heart_time;
+	/*发送部分*/
+	sFrame sedFrame;
+	QByteArray sedArry;
+	void sedDeal(eFrameType type,sFrameData data);
+	void sedFramePack(sFrame frame);
 signals:
     //处理完的Msg发到界面上去显示
     void signalSomethingComing(QByteArray);
