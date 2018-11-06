@@ -38,8 +38,10 @@ private:
 	CBridge* pb;
 private slots:
     void recSerialData(void);
-	void onComing(QByteArray content);
     void on_pushButton_clicked();
+public slots:
+	void onComing(QByteArray content);
+
 };
 
 #endif // WIDGET_H

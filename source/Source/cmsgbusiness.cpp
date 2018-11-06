@@ -1,28 +1,26 @@
 #include "cmsgbusiness.h"
 
-#include <QTimerEvent>
 
 CMsgBusiness::CMsgBusiness(QObject *parent) : QObject(parent)
 {
-	timer_id = this->startTimer(TIMER_TIMEOUT);
+	timer_heart = new QTimer(this);
+	timer_hands = new QTimer(this);
+	connect(timer_heart, SIGNAL(timeout()), this, SLOT(timerOutHeart()));
+	connect(timer_hands, SIGNAL(timeout()), this, SLOT(timerOuthands()));
+	timer_hands->start(HEART_POLL_TIME);
 }
 CMsgBusiness::~CMsgBusiness()
 {
-	if (timer_id != 0)
-	{
-		killTimer(timer_id);
-	}
+	
 }
-
+/*´®¿ÚÊÕµ½Êı¾İ*/
 void CMsgBusiness::onCommingMsg(const QByteArray msg)
-{   //è¿™é‡Œå¯ä»¥å¯¹æ”¶åˆ°çš„msgè¿›è¡Œå¤„ç†
+{   //ÕâÀï¿ÉÒÔ¶ÔÊÕµ½µÄmsg½øĞĞ´¦Àí
 	//QString str = msg;
-    emit signalSomethingComing(msg);
 	if (dataDeal(msg) != 0)
 	{
 		appDeal(protocol_data);
 	}
-	emit signalToSend(msg);
 }
 
 
@@ -32,25 +30,8 @@ QString CMsgBusiness::get(void) const
 	QString str = "cncncnncnc";
 	return str;
 }
-void CMsgBusiness::timerEvent(QTimerEvent * event)
-{
-	if (event->timerId() == timer_id)
-	{
-		if (work_stage == E_WORK_STAGE)
-		{
-			if (heart_time <= 0xffffu)
-			{
-				heart_time++;
-			}
-			if (heart_time >= HEART_WAIT_TIME)
-			{
-				//å‘é€å¿ƒè·³
 
-			}
-		}
-	}
-}
-/*å‘é€å¸§å¤„ç†*/
+/*·¢ËÍÖ¡´¦Àí*/
 void CMsgBusiness::sedDeal(eFrameType type,sFrameData data)
 {
 	sedFrame.header = FRAME_HEX_HEADER;
@@ -63,14 +44,14 @@ void CMsgBusiness::sedDeal(eFrameType type,sFrameData data)
 	{
 		sedFrame.len = 0x04u;
 		sedFrame.FrameData.len = sedFrame.len - FRAME_LEN_DIFF;
-		//å¿ƒè·³å¸§ä¸åŒ…å«æ•°æ®
+		//ĞÄÌøÖ¡²»°üº¬Êı¾İ
 		break;
 	}
 	default:
 		break;
 	}
 }
-/*å¸§æ‰“åŒ…å‡½æ•°*/
+/*Ö¡´ò°üº¯Êı*/
 void CMsgBusiness::sedFramePack(sFrame frame)
 {
 	uint16_t len = frame.len + 4u;
@@ -89,11 +70,12 @@ void CMsgBusiness::sedFramePack(sFrame frame)
 			sedArry.data()[7 + i] = frame.FrameData.data[i];
 		}
 	}
+	sedArry.data()[frame.FrameData.len + 7u] = frame.tail;
 }
-/* è¿”å›1ï¼šæˆåŠŸæ”¶åˆ°æ•°æ® 0ï¼šè§£æå¤±è´¥*/
+/* ·µ»Ø1£º³É¹¦ÊÕµ½Êı¾İ 0£º½âÎöÊ§°Ü*/
 uint8_t CMsgBusiness::dataDeal(QByteArray msg)
 {
-	//æ­¤å¤„å¢åŠ æ•°æ®å¤„ç†
+	//´Ë´¦Ôö¼ÓÊı¾İ´¦Àí
 	uint16_t idx;
 	uint16_t len,hard;
 	uint8_t ret = 0;
@@ -108,20 +90,20 @@ uint8_t CMsgBusiness::dataDeal(QByteArray msg)
 	len |= static_cast<uint16_t>(msg.at(idx + 2));
 	protocol_data.len = len;
 
-	if (msg.size >= idx + len + 3u)
+	if (msg.size() >= idx + len + 3u)
 	{
 		if (msg.at(idx + len + 3u) == FRAME_HEX_TAIL)
 		{
-			ret = 1;//å¸§æ ¡éªŒé€šè¿‡
+			ret = 1;//Ö¡Ğ£ÑéÍ¨¹ı
 		}
 		if (len < 4)
 		{
-			ret = 0;//æœ€å°å¸§é•¿åº¦
+			ret = 0;//×îĞ¡Ö¡³¤¶È
 		}
 	}
 	if (ret == 1)
-	{//å¸§å¤„ç†æ“ä½œ
-		protocol_data.type = msg.at(idx + 3u);
+	{//Ö¡´¦Àí²Ù×÷
+		protocol_data.type = static_cast<eFrameType>(msg.at(idx + 3u));
 		protocol_data.version = msg.at(idx + 4u);
 		hard = static_cast<uint16_t>(msg.at(idx + 5u)) << 8u;
 		hard |= static_cast<uint16_t>(msg.at(idx + 6u));
@@ -147,10 +129,10 @@ uint8_t CMsgBusiness::dataDeal(QByteArray msg)
 	}
 	return ret;
 }
-
+/*ÊÕµ½Êı¾İ ´¦Àíº¯Êı*/
 uint8_t CMsgBusiness::appDeal(sFrame frame)
 {
-	uint8_t ret;
+	uint8_t ret = 0;
 	uint8_t type = frame.type;
 
 	switch (type)
@@ -159,11 +141,47 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 	{
 		if (work_stage == E_INIT_STAGE)
 		{
+			if (versionJudgement(protocol_data) == 1u)
+			{
+				if (protocol_data.FrameData.data[0] == 1u)
+				{//ÎÕÊÖ³É¹¦
+					dismsg.resize(20);
+					dismsg.append("connect success");
+					work_stage = E_WORK_STAGE;
+					emit signalSomethingComing(dismsg);
+					timer_heart->start(HANDS_POLL_TIME);
+					if(timer_hands->isActive())
+					{
+						timer_hands->stop();
+					}
+				}
+				else
+				{
+					//ĞèÒªÔö¼Ó´íÎó´¦Àí
+				}
+			}
+		}
+		else if (work_stage == E_WORK_STAGE)
+		{
+			
+		}
+		else
+		{}
+		break;
+	}
+	case E_FRAME_HEARTBEAT:
+	{
+		if (work_stage == E_INIT_STAGE)
+		{
 			//do nothing
 		}
 		else if (work_stage == E_WORK_STAGE)
 		{
-			heart_time = 0;
+			//ÊÕµ½ĞÄÌø
+			if (heart_lost_cnt > 0)
+			{
+				heart_lost_cnt--;
+			}
 		}
 		break;
 	}
@@ -173,7 +191,49 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 	return ret;
 }
 
+uint8_t CMsgBusiness::versionJudgement(sFrame frame)
+{
+	uint8_t ret = 0;
+	/*ÔİÊ±Ö»ÅĞ¶ÏÓ²¼ş°æ±¾*/
+	if (frame.hard == LGJType)
+	{
+		ret = 1u;
+	}
+	else
+	{
+		ret = 0;
+	}
+	return ret;
+}
+
 void CMsgBusiness::onCommingAct(const QByteArray)
 {
 
+}
+/*ĞÄÌø·¢ËÍ¶¨Ê±µ½´ïº¯Êı*/
+void CMsgBusiness::timerOutHeart(void)
+{
+	sFrameData seddata = { 0,0 };//Òª·¢ËÍµÄÊı¾İ
+
+	if (heart_lost_cnt >= HEART_LOST_CNT)
+	{
+		work_stage = E_INIT_STAGE;
+		timer_heart->stop();
+	}
+	else
+	{
+		sedDeal(E_FRAME_HEARTBEAT, seddata);//·¢ËÍ½á¹¹Ìå¸³Öµº¯Êı
+		sedFramePack(sedFrame);//½á¹¹Ìå´ò°ü³ÉÊı×éÖ¡º¯Êı
+		emit signalToSend(sedArry);// ·¢ËÍĞÅºÅ
+		heart_lost_cnt++;
+	}
+}
+/*ÎÕÊÖ·¢ËÍ¶¨Ê±Æ÷µ½´ïº¯Êı*/
+void CMsgBusiness::timerOuthands(void)
+{
+	sFrameData seddata = { 0,0 };//Òª·¢ËÍµÄÊı¾İ
+
+	sedDeal(E_FRAME_HANDSHAKE, seddata);//·¢ËÍ½á¹¹Ìå¸³Öµº¯Êı
+	sedFramePack(sedFrame);//½á¹¹Ìå´ò°ü³ÉÊı×éÖ¡º¯Êı
+	emit signalToSend(sedArry);// ·¢ËÍĞÅºÅ
 }
