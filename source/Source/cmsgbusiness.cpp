@@ -1,28 +1,35 @@
 #include "cmsgbusiness.h"
 
-#include <QTimerEvent>
 
 CMsgBusiness::CMsgBusiness(QObject *parent) : QObject(parent)
 {
-	timer_id = this->startTimer(TIMER_TIMEOUT);
+	sedArry.resize(200u);
+	timer_heart = new QTimer(this);
+	timer_hands = new QTimer(this);
+	connect(timer_heart, SIGNAL(timeout()), this, SLOT(timerOutHeart()));
+	connect(timer_hands, SIGNAL(timeout()), this, SLOT(timerOuthands()));
+	timer_hands->start(HANDS_POLL_TIME);
+	work_stage = E_INIT_STAGE;
+	protocol_data = { 0,0,static_cast<eFrameType>(0),0,0,0,0 };
+	heart_lost_cnt = 0;
+	dismsg = "cn";
+	scan_data.resize(LGJUpBound+5u);//5ÎªÔ¤Áô
+	scan_data.clear();
+	sedFrame = { 0,0,static_cast<eFrameType>(0),0,0,0,0 };
+	sedArry = "cn";
 }
 CMsgBusiness::~CMsgBusiness()
 {
-	if (timer_id != 0)
-	{
-		killTimer(timer_id);
-	}
+	
 }
-
+/*´®¿ÚÊÕµ½Êı¾İ*/
 void CMsgBusiness::onCommingMsg(const QByteArray msg)
-{   //è¿™é‡Œå¯ä»¥å¯¹æ”¶åˆ°çš„msgè¿›è¡Œå¤„ç†
+{   //ÕâÀï¿ÉÒÔ¶ÔÊÕµ½µÄmsg½øĞĞ´¦Àí
 	//QString str = msg;
-    emit signalSomethingComing(msg);
 	if (dataDeal(msg) != 0)
 	{
 		appDeal(protocol_data);
 	}
-	emit signalToSend(msg);
 }
 
 
@@ -32,25 +39,8 @@ QString CMsgBusiness::get(void) const
 	QString str = "cncncnncnc";
 	return str;
 }
-void CMsgBusiness::timerEvent(QTimerEvent * event)
-{
-	if (event->timerId() == timer_id)
-	{
-		if (work_stage == E_WORK_STAGE)
-		{
-			if (heart_time <= 0xffffu)
-			{
-				heart_time++;
-			}
-			if (heart_time >= HEART_WAIT_TIME)
-			{
-				//å‘é€å¿ƒè·³
 
-			}
-		}
-	}
-}
-/*å‘é€å¸§å¤„ç†*/
+/*·¢ËÍÖ¡´¦Àí*/
 void CMsgBusiness::sedDeal(eFrameType type,sFrameData data)
 {
 	sedFrame.header = FRAME_HEX_HEADER;
@@ -62,26 +52,41 @@ void CMsgBusiness::sedDeal(eFrameType type,sFrameData data)
 	case E_FRAME_HEARTBEAT:
 	{
 		sedFrame.len = 0x04u;
+		sedFrame.type = type;
 		sedFrame.FrameData.len = sedFrame.len - FRAME_LEN_DIFF;
-		//å¿ƒè·³å¸§ä¸åŒ…å«æ•°æ®
+		//ĞÄÌøÖ¡²»°üº¬Êı¾İ
+		break;
+	}
+	case E_FRAME_HANDSHAKE:
+	{
+		sedFrame.len = 0x04u;
+		sedFrame.type = type;
+		sedFrame.FrameData.len = sedFrame.len - FRAME_LEN_DIFF;
+		//ÎÕÊÖÖ¡²»°üº¬Êı¾İ
 		break;
 	}
 	default:
 		break;
 	}
 }
-/*å¸§æ‰“åŒ…å‡½æ•°*/
+/*Ö¡´ò°üº¯Êı*/
 void CMsgBusiness::sedFramePack(sFrame frame)
 {
+	
+	sedArry.clear();
 	uint16_t len = frame.len + 4u;
+	if (len > 500u)	//·¢ËÍÖ¡´óĞ¡ÏŞÖÆ
+	{
+		return;
+	}
 	sedArry.resize(len);
 	sedArry.data()[0] = frame.header;
-	sedArry.data()[1] = static_cast<uint8_t>(frame.len);
-	sedArry.data()[2] = static_cast<uint8_t>(frame.len >> 8u);
+	sedArry.data()[1] = static_cast<uint8_t>(frame.len >> 8u);
+	sedArry.data()[2] = static_cast<uint8_t>(frame.len);
 	sedArry.data()[3] = static_cast<uint8_t>(frame.type);
 	sedArry.data()[4] = frame.version;
-	sedArry.data()[5] = static_cast<uint8_t>(frame.hard);
-	sedArry.data()[6] = static_cast<uint8_t>(frame.hard >> 8u);
+	sedArry.data()[5] = static_cast<uint8_t>(frame.hard >> 8u);
+	sedArry.data()[6] = static_cast<uint8_t>(frame.hard);
 	if ((frame.FrameData.len != 0)&&(frame.FrameData.len+7u<=len))
 	{
 		for (uint16_t i = 0; i < frame.FrameData.len; i++)
@@ -89,68 +94,87 @@ void CMsgBusiness::sedFramePack(sFrame frame)
 			sedArry.data()[7 + i] = frame.FrameData.data[i];
 		}
 	}
+	sedArry.data()[frame.FrameData.len + 7u] = frame.tail;
 }
-/* è¿”å›1ï¼šæˆåŠŸæ”¶åˆ°æ•°æ® 0ï¼šè§£æå¤±è´¥*/
+/* ·µ»Ø1£º³É¹¦ÊÕµ½Êı¾İ 0£º½âÎöÊ§°Ü*/
 uint8_t CMsgBusiness::dataDeal(QByteArray msg)
 {
-	//æ­¤å¤„å¢åŠ æ•°æ®å¤„ç†
-	uint16_t idx;
-	uint16_t len,hard;
+	//´Ë´¦Ôö¼ÓÊı¾İ´¦Àí
+	int16_t idx = -1;
+	uint16_t len = 0,hard = 0;
 	uint8_t ret = 0;
-	uint16_t i;
+	int16_t i;
 
-	idx = msg.indexOf(FRAME_HEX_HEADER);
-	if ( idx != -1)
+	if (msg.size() > 200)	//ÏŞÖÆÒ»Ö¡Êı²»ÄÜ´óÓÚ200×Ö½Ú
+	{
+		return 0;
+	}
+	FrameClear(&protocol_data);
+	for (i = 0; i < msg.size(); i++)
+	{
+		if (msg.at(i) == FRAME_HEX_HEADER)
+		{
+			idx = i;
+			break;
+		}
+	}
+	if((idx >= 0)&&(idx<msg.size()))
 	{
 		protocol_data.header = msg.at(idx);
-	}
-	len = static_cast<uint16_t>(msg.at(idx + 1)) << 8u;
-	len |= static_cast<uint16_t>(msg.at(idx + 2));
-	protocol_data.len = len;
-
-	if (msg.size >= idx + len + 3u)
-	{
-		if (msg.at(idx + len + 3u) == FRAME_HEX_TAIL)
+		len |= 0xff00&(static_cast<uint16_t>(msg.at(idx + 1)) << 8u);
+		len |= 0x00ff&(static_cast<uint16_t>(msg.at(idx + 2)));
+		if ((len+ FRAME_LEN_DIFF) > msg.size())
 		{
-			ret = 1;//å¸§æ ¡éªŒé€šè¿‡
+			return 0;
 		}
-		if (len < 4)
+		protocol_data.len = len;
+		qDebug() << msg;
+		if (msg.size() >= (idx + len + 3u))
 		{
-			ret = 0;//æœ€å°å¸§é•¿åº¦
-		}
-	}
-	if (ret == 1)
-	{//å¸§å¤„ç†æ“ä½œ
-		protocol_data.type = msg.at(idx + 3u);
-		protocol_data.version = msg.at(idx + 4u);
-		hard = static_cast<uint16_t>(msg.at(idx + 5u)) << 8u;
-		hard |= static_cast<uint16_t>(msg.at(idx + 6u));
-		protocol_data.hard = hard;
-		protocol_data.tail = msg.at(idx + len + 3u);
-		protocol_data.FrameData.len = len - 4u;
-		if (protocol_data.FrameData.len != 0)
-		{
-			for (i = 0; i < protocol_data.FrameData.len; i++)
+			if (msg.at(idx + len + 3u) == FRAME_HEX_TAIL)
 			{
-				protocol_data.FrameData.data[i] = msg.at(idx + 8u);
+				ret = 1;//Ö¡Ğ£ÑéÍ¨¹ı
+			}
+			if (len < 4)
+			{
+				ret = 0;//×îĞ¡Ö¡³¤¶È
 			}
 		}
-		if ((protocol_data.type >= E_FRAME_HANDSHAKE) \
-			&& (protocol_data.type <= E_FRAME_INQUIRE_MEASURE))
-		{
-			ret = 1;
+		if (ret == 1)
+		{//Ö¡´¦Àí²Ù×÷
+			protocol_data.type = static_cast<eFrameType>(msg.at(idx + 3u));
+			protocol_data.version = msg.at(idx + 4u);
+			hard |= (0xff00&(static_cast<uint16_t>(msg.at(idx + 5u)) << 8u));
+			hard |= (0x00ff&(static_cast<uint16_t>(msg.at(idx + 6u))));
+			protocol_data.hard = hard;
+			protocol_data.tail = msg.at(idx + len + 3u);
+			protocol_data.FrameData.len = len - 4u;
+			if (protocol_data.FrameData.len != 0)
+			{
+				for (i = 0; i < protocol_data.FrameData.len; i++)
+				{
+					protocol_data.FrameData.data[i] = msg.at(idx + 7u + i);
+				}
+			}
+			if ((protocol_data.type >= E_FRAME_HANDSHAKE) \
+				&& (protocol_data.type <= E_FRAME_INQUIRE_MEASURE))
+			{
+				ret = 1;
+			}
+			else
+			{
+				ret = 0;
+			}
 		}
-		else
-		{
-			ret = 0;
-		}
+		return ret;
 	}
-	return ret;
+	return 0;
 }
-
+/*½ÓÊÕ²¿·Ö
+ÊÕµ½Êı¾İ ´¦Àíº¯Êı*/
 uint8_t CMsgBusiness::appDeal(sFrame frame)
 {
-	uint8_t ret;
+	uint8_t ret = 0;
 	uint8_t type = frame.type;
 
 	switch (type)
@@ -159,11 +183,73 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 	{
 		if (work_stage == E_INIT_STAGE)
 		{
+			if (versionJudgement(frame) == 1u)
+			{
+				if (frame.FrameData.data[0] == 1u)
+				{//ÎÕÊÖ³É¹¦
+					dismsg.clear();
+					dismsg.append("connect success");
+					work_stage = E_WORK_STAGE;
+					emit signalSomethingComing(dismsg);
+					timer_heart->start(HEART_POLL_TIME);
+					if(timer_hands->isActive())
+					{
+						timer_hands->stop();
+					}
+				}
+				else
+				{
+					//ĞèÒªÔö¼Ó´íÎó´¦Àí
+				}
+			}
+		}
+		else if (work_stage == E_WORK_STAGE)
+		{
+			//¹¤×÷×´Ì¬ÊÕµ½ÎÕÊÖ²»´¦Àí
+		}
+		else
+		{}
+		break;
+	}
+	case E_FRAME_HEARTBEAT:
+	{
+		if (work_stage == E_INIT_STAGE)
+		{
 			//do nothing
 		}
 		else if (work_stage == E_WORK_STAGE)
 		{
-			heart_time = 0;
+			//ÊÕµ½ĞÄÌø
+			if (heart_lost_cnt > 0)
+			{
+				heart_lost_cnt--;
+			}
+		}
+		break;
+	}
+	case E_FRAME_DETECTION:
+	{
+		if (work_stage == E_WORK_STAGE)
+		{
+			if (versionJudgement(frame) == 1u)
+			{
+				if (frame.FrameData.data[0] == 0x02u)//ÇëÇó×Ö½ÚÎª»Ø¸´
+				{
+					if (frame.FrameData.len == LGJUpBound+1)//³¤¶ÈĞ£¶Ô
+					{
+						scan_data.clear();
+						for (uint8_t i = 1; i < LGJUpBound + 1; i++)
+						{
+							scan_data.append(frame.FrameData.data[i]);
+						}
+						//emit signalSomethingComing(scan_data);
+					}
+				}
+			}
+			else
+			{
+				//Ó²¼ş°æ±¾´íÎó
+			}
 		}
 		break;
 	}
@@ -173,7 +259,66 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 	return ret;
 }
 
+uint8_t CMsgBusiness::versionJudgement(sFrame frame)
+{
+	uint8_t ret = 0;
+	/*ÔİÊ±Ö»ÅĞ¶ÏÓ²¼ş°æ±¾*/
+	if (frame.hard == LGJType)
+	{
+		ret = 1u;
+	}
+	else
+	{
+		ret = 0;
+	}
+	return ret;
+}
+
 void CMsgBusiness::onCommingAct(const QByteArray)
 {
 
+}
+/*ĞÄÌø·¢ËÍ¶¨Ê±µ½´ïº¯Êı*/
+void CMsgBusiness::timerOutHeart(void)
+{
+	sFrameData seddata = { 0,0 };//Òª·¢ËÍµÄÊı¾İ
+
+	if (heart_lost_cnt >= HEART_LOST_CNT)
+	{//ÊÕ²»µ½ĞÄÌø¶ÏÁ¬
+		work_stage = E_INIT_STAGE;
+		timer_heart->stop();
+		timer_hands->start(HANDS_POLL_TIME);
+		heart_lost_cnt = 0;
+		dismsg.clear();
+		dismsg.append("disconnect");
+		emit signalSomethingComing(dismsg);
+
+	}
+	else
+	{
+		sedDeal(E_FRAME_HEARTBEAT, seddata);//·¢ËÍ½á¹¹Ìå¸³Öµº¯Êı
+		sedFramePack(sedFrame);//½á¹¹Ìå´ò°ü³ÉÊı×éÖ¡º¯Êı
+		emit signalToSend(sedArry);// ·¢ËÍĞÅºÅ
+		heart_lost_cnt++;
+	}
+}
+/*ÎÕÊÖ·¢ËÍ¶¨Ê±Æ÷µ½´ïº¯Êı*/
+void CMsgBusiness::timerOuthands(void)
+{
+	sFrameData seddata = { 0,0 };//Òª·¢ËÍµÄÊı¾İ
+
+	sedDeal(E_FRAME_HANDSHAKE, seddata);//·¢ËÍ½á¹¹Ìå¸³Öµº¯Êı
+	sedFramePack(sedFrame);//½á¹¹Ìå´ò°ü³ÉÊı×éÖ¡º¯Êı
+	emit signalToSend(sedArry);// ·¢ËÍĞÅºÅ
+}
+
+void CMsgBusiness::FrameClear(sFrame* frame)
+{
+	frame->header = 0;
+	frame->len = 0;
+	frame->type = static_cast<eFrameType>(0);
+	frame->version = 0;
+	frame->hard = 0;
+	frame->FrameData.len = 0;
+	frame->tail = 0;
 }
