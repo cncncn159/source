@@ -1,8 +1,6 @@
 #ifndef CMSGBUSINESS_H
 #define CMSGBUSINESS_H
-#include <QTimer>
-#include <QDebug>
-#include <QBytearray>
+
 //***********************************量革机的型号************************************************
 // 	#define	LGJType 140		//量革机的型号		//特别说明：140型的图片借用150
 // 	#define	LGJType 150		//量革机的型号
@@ -15,10 +13,6 @@
 //	#define	LGJType 300		//量革机的型号
 //	#define	LGJType 320		//量革机的型号
 
-#define	LGJLight (LGJType/2)		//量革机的光电的灯的数目
-#define	LGJUpBound ((LGJLight+7)/8)	//量革机的光电的灯的数目对应的字节数组大小
-#define	LGJLightNum  ((LGJType/2)%8)//与掉时要保留的光电的灯的数目
-
 #include <QObject>
 
 #define FRAME_HEX_HEADER 	0x68u
@@ -27,26 +21,14 @@
 #define SOFEWAVE_VERSION	0x00
 #define FRAME_LEN_DIFF		4u
 
-#define HEART_POLL_TIME		5000u		//心跳轮询发送时间 单位ms
-#define HANDS_POLL_TIME		1000u		//握手轮询发送时间 单位ms
+#define TIMER_TIMEOUT		1000u
+#define HEART_WAIT_TIME		5u
 
-#define HEART_LOST_CNT		5u			//心跳丢失次数执行 断连
 typedef struct
 {
 	uint8_t len;
 	uint8_t data[50];
 }sFrameData;
-
-typedef enum
-{
-	E_FRAME_HANDSHAKE = 1,				//握手
-	E_FRAME_HEARTBEAT,					//心跳
-	E_FRAME_DETECTION,					//检测
-	E_FRAME_MEASURING,					//测量中
-	E_FRAME_END_MEASURE,				//测量结束
-	E_FRAME_DATA_MEASURE,				//测量数据
-	E_FRAME_INQUIRE_MEASURE				//测量查询
-}eFrameType;							//帧类型
 
 typedef struct
 {
@@ -58,6 +40,17 @@ typedef struct
 	sFrameData	FrameData;
 	uint8_t		tail;	//帧尾
 }sFrame;
+
+typedef enum
+{
+	E_FRAME_HANDSHAKE = 1,				//握手
+	E_FRAME_HEARTBEAT,					//心跳
+	E_FRAME_DETECTION,					//检测
+	E_FRAME_MEASURING,					//测量中
+	E_FRAME_END_MEASURE,				//测量结束
+	E_FRAME_DATA_MEASURE,				//测量数据
+	E_FRAME_INQUIRE_MEASURE				//测量查询
+}eFrameType;							//帧类型
 
 typedef enum
 {
@@ -74,42 +67,31 @@ public:
     ~CMsgBusiness();
     //这里可以在UI里来直接调用
     QString get()const;
+	virtual void timerEvent(QTimerEvent *event);
 
 private:
 	sFrame protocol_data;
-	uint8_t dataDeal(QByteArray);//接收到的帧数据解析处理
-	uint8_t appDeal(sFrame frame);//接收到数据后的操作
-	uint8_t versionJudgement(sFrame frame);//判断软件硬件版本号
+	uint8_t dataDeal(QByteArray);
+	uint8_t appDeal(sFrame frame);
 	eWorkingStage work_stage;
-	uint8_t heart_lost_cnt;//心跳遗失次数
-	/*发向显示的消息*/
-	QByteArray dismsg;
-	QByteArray scan_data;//扫描数据 发往显示
-	/*QTimer test*/
-	QTimer* timer_heart;//心跳轮询发送定时器
-	QTimer* timer_hands;//握手轮询发送定时器
+	uint16_t timer_id;
+	uint16_t heart_time;
 	/*发送部分*/
 	sFrame sedFrame;
 	QByteArray sedArry;
-	void sedDeal(eFrameType type,sFrameData data);//发送结构体赋值函数
-	void sedFramePack(sFrame frame);//结构体打包成数组帧函数
-	void FrameClear(sFrame* frame);//清空结构体函数
-
+	void sedDeal(eFrameType type,sFrameData data);
+	void sedFramePack(sFrame frame);
 signals:
     //处理完的Msg发到界面上去显示
     void signalSomethingComing(QByteArray);
 	//下发命令到comm层
 	void signalToSend(QByteArray);
 private slots:
-	void timerOutHeart(void);
-	void timerOuthands(void);
-	
-public slots:
-
-	//收到下层来的msg
-	void onCommingMsg(const QByteArray);
+    //收到下层来的msg
+    void onCommingMsg(const QByteArray);
 	//收到界面上的动作
 	void onCommingAct(const QByteArray);
+public slots:
 };
 
 

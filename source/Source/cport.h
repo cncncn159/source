@@ -19,15 +19,13 @@ signals:
 	void signalUpwardMsg(const QByteArray);
 
 private slots:
-
+    //上层传过来的消息发送到串口
+	void onDownwardMsg(const QByteArray);
+	void onReadData();
 	//读串口数据
 
 	void onParse();
 	//在这里定时的解析收到的数据
-public slots:
-	void onDownwardMsg(const QByteArray);
-	//上层传过来的消息发送到串口
-	void onReadData();
 private:
     QSerialPort* port;
     QThread worker;
