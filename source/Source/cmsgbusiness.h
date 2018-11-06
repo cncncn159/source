@@ -1,6 +1,8 @@
 #ifndef CMSGBUSINESS_H
 #define CMSGBUSINESS_H
 #include <QTimer>
+#include <QDebug>
+#include <QBytearray>
 //***********************************量革机的型号************************************************
 // 	#define	LGJType 140		//量革机的型号		//特别说明：140型的图片借用150
 // 	#define	LGJType 150		//量革机的型号
@@ -13,6 +15,10 @@
 //	#define	LGJType 300		//量革机的型号
 //	#define	LGJType 320		//量革机的型号
 
+#define	LGJLight (LGJType/2)		//量革机的光电的灯的数目
+#define	LGJUpBound ((LGJLight+7)/8)	//量革机的光电的灯的数目对应的字节数组大小
+#define	LGJLightNum  ((LGJType/2)%8)//与掉时要保留的光电的灯的数目
+
 #include <QObject>
 
 #define FRAME_HEX_HEADER 	0x68u
@@ -21,8 +27,8 @@
 #define SOFEWAVE_VERSION	0x00
 #define FRAME_LEN_DIFF		4u
 
-#define HEART_POLL_TIME		1000u		//心跳轮询发送时间 单位ms
-#define HANDS_POLL_TIME		5000u		//握手轮询发送时间 单位ms
+#define HEART_POLL_TIME		5000u		//心跳轮询发送时间 单位ms
+#define HANDS_POLL_TIME		1000u		//握手轮询发送时间 单位ms
 
 #define HEART_LOST_CNT		5u			//心跳丢失次数执行 断连
 typedef struct
@@ -78,6 +84,7 @@ private:
 	uint8_t heart_lost_cnt;//心跳遗失次数
 	/*发向显示的消息*/
 	QByteArray dismsg;
+	QByteArray scan_data;//扫描数据 发往显示
 	/*QTimer test*/
 	QTimer* timer_heart;//心跳轮询发送定时器
 	QTimer* timer_hands;//握手轮询发送定时器
@@ -86,6 +93,8 @@ private:
 	QByteArray sedArry;
 	void sedDeal(eFrameType type,sFrameData data);//发送结构体赋值函数
 	void sedFramePack(sFrame frame);//结构体打包成数组帧函数
+	void FrameClear(sFrame* frame);//清空结构体函数
+
 signals:
     //处理完的Msg发到界面上去显示
     void signalSomethingComing(QByteArray);
