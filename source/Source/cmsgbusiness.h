@@ -110,6 +110,8 @@ public slots:
 	void onCommingMsg(const QByteArray);
 	//收到界面上的动作
 	void onCommingAct(const QByteArray);
+	//上层发来的扫描信号
+	void onScanSend(void);
 };
 
 

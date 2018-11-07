@@ -3,6 +3,11 @@
 
 #include <QDialog>
 #include <QLineEdit>
+#include <QCheckBox>
+#include <QTimer>
+#include <QBytearray>
+
+#define SCAN_REFRESH_INTERVAL	1000		//发送扫描检测间隔 单位ms
 
 namespace Ui {
 class ScanTest;
@@ -15,12 +20,15 @@ class ScanTest : public QDialog
 public:
     explicit ScanTest(QWidget *parent = 0);
     ~ScanTest();
-
+signals:
+	void sedScanFrame(void);
 private:
     Ui::ScanTest *ui;
-
+	QTimer* timer_refresh;
+	QByteArray scan_data;
 private slots:
     void showValue(QByteArray value);
+	void timerOutSed(void);
 };
 
 #endif // SCANTEST_H

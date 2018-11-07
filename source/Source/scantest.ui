@@ -2,12 +2,15 @@
 <ui version="4.0">
  <class>ScanTest</class>
  <widget class="QDialog" name="ScanTest">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>637</width>
-    <height>378</height>
+    <width>745</width>
+    <height>471</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,13 +29,13 @@
     <string>close</string>
    </property>
   </widget>
-  <widget class="QWidget" name="">
+  <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
      <x>100</x>
      <y>20</y>
      <width>451</width>
-     <height>341</height>
+     <height>411</height>
     </rect>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -92,7 +95,37 @@
       </property>
      </widget>
     </item>
+    <item>
+     <widget class="QLineEdit" name="lineEdit_9">
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLineEdit" name="lineEdit_10">
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
    </layout>
+  </widget>
+  <widget class="QCheckBox" name="checkBox">
+   <property name="geometry">
+    <rect>
+     <x>610</x>
+     <y>190</y>
+     <width>71</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>CheckBox</string>
+   </property>
+   <property name="tristate">
+    <bool>false</bool>
+   </property>
   </widget>
  </widget>
  <resources/>

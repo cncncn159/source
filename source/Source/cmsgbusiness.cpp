@@ -47,27 +47,33 @@ void CMsgBusiness::sedDeal(eFrameType type,sFrameData data)
 	sedFrame.version = SOFEWAVE_VERSION;
 	sedFrame.hard = LGJType;
 	sedFrame.tail = FRAME_HEX_TAIL;
+	sedFrame.type = type;
+
 	switch (type)
 	{
 	case E_FRAME_HEARTBEAT:
 	{
 		sedFrame.len = 0x04u;
-		sedFrame.type = type;
-		sedFrame.FrameData.len = sedFrame.len - FRAME_LEN_DIFF;
 		//心跳帧不包含数据
 		break;
 	}
 	case E_FRAME_HANDSHAKE:
 	{
 		sedFrame.len = 0x04u;
-		sedFrame.type = type;
-		sedFrame.FrameData.len = sedFrame.len - FRAME_LEN_DIFF;
 		//握手帧不包含数据
+		break;
+	}
+	case E_FRAME_DETECTION:
+	{
+		sedFrame.len = 0x05u;
+		sedFrame.FrameData.data[0] = 1;	//请求字节 1
 		break;
 	}
 	default:
 		break;
 	}
+	sedFrame.FrameData.len = sedFrame.len - FRAME_LEN_DIFF;
+
 }
 /*帧打包函数*/
 void CMsgBusiness::sedFramePack(sFrame frame)
@@ -237,12 +243,49 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 				{
 					if (frame.FrameData.len == LGJUpBound+1)//长度校对
 					{
+						//qDebug()<<"E_FRAME_DETECTION";
 						scan_data.clear();
+						scan_data.append(0x66);//第一个字节为66 为数据
+						scan_data.append(0x03);//第二个字节为3	为各类帧
+						uint8_t flag_all_temp = 0;//全空标志位
+						uint8_t temp = 0;//掩码
 						for (uint8_t i = 1; i < LGJUpBound + 1; i++)
 						{
 							scan_data.append(frame.FrameData.data[i]);
+							/*下面代码为判断是否为全空*/
+							if (flag_all_temp == 0)//0 为全空 1为不全空
+							{
+								if (i < LGJUpBound)
+								{//不为最后一组
+									if (frame.FrameData.data[i] != 0)
+									{
+										flag_all_temp = 1;
+									}
+								}
+								else
+								{//最后一组 需要掩码
+									if (frame.FrameData.data[i] != 0)
+									{
+										if (LGJLightNum <= 8)
+										{
+											temp = frame.FrameData.data[i];
+											temp = temp << LGJLightNum;
+											temp &= 0x00ff;
+											if (temp != 0)
+											{
+												flag_all_temp = 1;
+											}
+										}
+										else
+										{
+											flag_all_temp = 1;
+										}
+									}
+								}
+							}
 						}
-						//emit signalSomethingComing(scan_data);
+						scan_data.append(flag_all_temp);
+						emit signalSomethingComing(scan_data);
 					}
 				}
 			}
@@ -277,6 +320,15 @@ uint8_t CMsgBusiness::versionJudgement(sFrame frame)
 void CMsgBusiness::onCommingAct(const QByteArray)
 {
 
+}
+//发送扫描
+void CMsgBusiness::onScanSend(void)
+{
+	sFrameData seddata = { 1,1 };//要发送的数据
+
+	sedDeal(E_FRAME_DETECTION, seddata);//发送结构体赋值函数
+	sedFramePack(sedFrame);//结构体打包成数组帧函数
+	emit signalToSend(sedArry);// 发送信号
 }
 /*心跳发送定时到达函数*/
 void CMsgBusiness::timerOutHeart(void)

@@ -25,7 +25,8 @@ public:
 signals:
 //    void readyRead();
 //    void dlgReturn(QByteArray);
-	void UiSometingDoing(QByteArray);
+//	void UiSometingDoing(QByteArray);
+	void scanValsed(QByteArray);
 private:
     Ui::Widget *ui;
     QStringList baudList;
@@ -36,6 +37,12 @@ private:
     void handleError(QSerialPort::SerialPortError error);
     UartThread* uart;
 	CBridge* pb;
+	QPushButton* scanButton;
+	
+	/*扫描板连接状态*/
+	uint8_t scanbroad_net_sta;	//0 未连接 1 连接
+	/*扫描数据*/
+	QByteArray scan_arry;
 private slots:
     void recSerialData(void);
     void on_pushButton_clicked();
