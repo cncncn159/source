@@ -3,23 +3,8 @@
 #include <QTimer>
 #include <QDebug>
 #include <QBytearray>
-//***********************************量革机的型号************************************************
-// 	#define	LGJType 140		//量革机的型号		//特别说明：140型的图片借用150
-// 	#define	LGJType 150		//量革机的型号
-#define	LGJType 180u		//量革机的型号		//默认硬件版本
-//	#define	LGJType 200		//量革机的型号
-//	#define	LGJType 220		//量革机的型号
-//	#define	LGJType 240		//量革机的型号
-//	#define	LGJType 256		//量革机的型号
-//	#define	LGJType 280		//量革机的型号
-//	#define	LGJType 300		//量革机的型号
-//	#define	LGJType 320		//量革机的型号
-
-#define	LGJLight (LGJType/2)		//量革机的光电的灯的数目
-#define	LGJUpBound ((LGJLight+7)/8)	//量革机的光电的灯的数目对应的字节数组大小
-#define	LGJLightNum  ((LGJType/2)%8)//与掉时要保留的光电的灯的数目
-
 #include <QObject>
+#include "sys.h"
 
 #define FRAME_HEX_HEADER 	0x68u
 #define FRAME_HEX_TAIL		0x7fu
@@ -74,7 +59,6 @@ public:
     ~CMsgBusiness();
     //这里可以在UI里来直接调用
     QString get()const;
-
 private:
 	sFrame protocol_data;
 	uint8_t dataDeal(QByteArray);//接收到的帧数据解析处理
@@ -94,6 +78,11 @@ private:
 	void sedDeal(eFrameType type,sFrameData data);//发送结构体赋值函数
 	void sedFramePack(sFrame frame);//结构体打包成数组帧函数
 	void FrameClear(sFrame* frame);//清空结构体函数
+	/*接收标志*/
+	uint8_t rec_flag;// 0 初始值 1 接收完成 2 收到测量中 3 收到测量结束
+	//uint16_t lenth;//接收到测量结束的line长度
+	/*皮参数*/
+	uint16_t accu_area;	//每张皮的面积点数
 
 signals:
     //处理完的Msg发到界面上去显示

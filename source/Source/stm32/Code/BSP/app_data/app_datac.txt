@@ -1,0 +1,265 @@
+#include "app_data.h"
+
+static sFrame RecFrame,SedFrame;
+static Version_Flag = 0xff;	//1为硬件版本错 2为软件版本错 
+							//0为正确
+
+static u8 JudgeFrame(const u8* indata,u16 len);
+static void FrameStructure(u8* indata, u16 inlen,u8* outdata, u8* outlen);
+static u8 JudgementFixationFrame(sFrame recframe);
+
+static void AppDataHandShake(void);
+static void AppDataHeartBeat(void);
+static void AppDataDetection(void);
+static void AppDataMeasuring(void);
+static void AppDataMeasureEnd(void);
+static void AppDataMeasureData(void);
+static void AppDataMeasureInquire(void);
+
+static const sCommandAppData CommandAppData[COMMAND_TOTAL_NUM]=
+{
+	{ 1u,AppDataHandShake },
+	{ 2u,AppDataHeartBeat },
+	{ 3u,AppDataDetection },
+	{ 4u,AppDataMeasuring },
+	{ 5u,AppDataMeasureEnd },
+	{ 6u,AppDataMeasureData },
+	{ 7u,AppDataMeasureInquire }
+}
+/*数据处理函数 data 输入数组 len 输入数组长度
+	返回值: 0xff :输出数组错误 长度不对或找不到首帧
+			0x01 :帧不完整 
+			0x02 :帧内数据长度小于4 */
+void AppDataDeal(const u8* data,u16 len)
+{
+	u8 i,ret = 0x03;
+	u8 ret_data[50];//完整性判断后的待处理数据
+	u16 ret_len;//待处理数据的帧长度
+	u8 j;
+
+	if (len < 8u)	//帧长度小于8 直接退出
+	{
+		return ret;
+	}
+	//*******接收部分*******//
+	//*******|___数据完整性判断
+	if(data[0] == FRAME_HEX_HEADER)
+	{
+		//首帧为0x68
+		ret = JudgeFrame(data,len,ret_data,&ret_len);
+		//JudgeFrame 包括校验和将数组转换为RecFrame结构体中
+	}
+	else
+	{
+		//首帧和第一个字节对应不上，例编数组找首帧
+		for(i=0;i<len;i++)
+		{
+			if(data[i] == FRAME_HEX_HEADER)
+			{
+				//找到首帧
+				if ((len-i) < 8u)		//帧长度小于8 直接退出
+				{
+					return ret;
+				}
+				ret=JudgeFrame(&data[i],len-i,ret_data,&ret_len);
+				//JudgeFrame 包括校验和将数组转换为RecFrame结构体中
+				break;
+			}
+		}
+	}
+	//*******|___数据处理
+	if(ret == E_FRAME_VERIFY)
+	{
+		//校验不通过
+		return ret;
+	}
+	else if(ret == E_FRAME_OK)
+	{
+		//校验成功
+		//先判断帧的固定数据是否正确	
+		//10-23 将在数组中判断改为在结构体中判断，因为JudgeFrame中已经将信息转为结构体
+		//10-23 判断不正确也要回复
+		if (JudgementFixationFrame(RecFrame)==1u)
+		{
+			Version_Flag = 0;//版本号正确
+		}
+		else
+		{
+			Version_Flag = 0;//版本号错误
+			//版本号或软件号对应不上
+			ret = E_FRAME_VERSION;
+		}
+		if (FrameDealDataToStruct(ret_data, &ret_len, &RecFrame) == 1u)
+		{
+			for (j = 0; j < COMMAND_TOTAL_NUM; j++)
+			{
+				if ((CommandAppData[j].order != 0) && (CommandAppData[j].order == RecFrame.type))
+				{
+					//********动作部分*********//
+					CommandAppData[j].execute();
+				}
+			}
+		}
+	}
+	else
+	{
+		//接收错误 
+		if(ret == E_FRAME_INCOMPLETE)
+		{
+			//帧不完整
+		}
+		else if(ret == E_FRAME_LEN_LACK)
+		{
+			//帧长度小于4
+		}
+		else
+		{
+			//例外 程序不受控
+		}
+	}
+	return ret;
+}
+/* 	帧校验函数 检测到帧头执行(找0x68 然后提取帧长度，由长度找到尾帧，成功则校验通过)
+	再将数据打包成结构体
+	返回：0 正确接收， 1 帧不完整 2 帧长度小于4
+输入 indata: 要处理的帧地址，len:要处理帧的长度 ， data:  */
+static u8 JudgeFrame(const u8* indata,u16 len)	//len 限制长度 数组的最大长度 
+{
+	u16 tem_len,tem_hard;
+	u8 i,ret=0;
+	
+	RecFrame.header = indata[0];
+	
+	tem_len |= indata[1]<<8;
+	tem_len |= indata[2];
+	RecFrame.len = tem_len;
+	
+	RecFrame.type = indata[3];
+	
+	RecFrame.version = indata[4];
+	
+	tem_hard |= indata[5]<<8;
+	tem_hard |= indata[6];
+	RecFrame.hard = tem_hard;
+	
+	//先验证帧完整性，查看帧尾是否正确
+	if(indata[tem_hard+3] == FRAME_HEX_TAIL) //3 = 1 + 2 帧头 一个字节 长度 三个字节
+	{
+		if(tem_hard<4)
+		{
+			RecFrame.FrameData.len = tem_hard - 4;//数据长度等与 总长度减4 2个字节的硬件号 1个字节版本号 和1个粽子节帧类型
+			//正确,接收帧数据
+			if(RecFrame.FrameData.len == 0) 
+			{	//无数据位 可能为 握手等协议
+				
+			}
+			else
+			{
+				for(i=0;i<RecFrame.FrameData.len;i++)
+				{
+					RecFrame.FrameData.data[i] = indata[i+7];
+				}
+			}
+			//帧正确 ret = 0
+		}
+		else
+		{
+			ret = E_FRAME_LEN_LACK; //tem_hard < 4 暂时没有协议帧长度小于4
+		}
+	}
+	else
+	{
+		ret = E_FRAME_INCOMPLETE;	//帧不完整
+	}
+	return ret;
+}
+
+//判断帧的固定帧 返回 1:成功 0:软件版本对应不上 2:硬件版本对应不上
+//ps:需要先将输入的数据通过帧完整性判断
+static u8 JudgementFixationFrame(sFrame recframe)
+{
+	u8 ret;
+	u8 version;
+	u16 hard;
+	
+	version = recframe.type;
+	hard = recframe.hard;
+	
+	if(version == SOFTWARE_VERSION)
+	{
+		//软件版本能对应上
+		if(hard == LGJType)	
+		{
+			//硬件版本能对应上	ps:暂时不支持直接协议修改硬件版本，之后可以添加 设计为硬件类型为变量
+			ret = 1;
+		}
+		else
+		{
+			ret = 2;
+		}
+	}
+	else
+	{
+		ret = 0;
+	}
+	return ret;
+}
+
+//包装函数 将发送的协议包装
+//输入 SedFrame 需要先配置好发送结构体
+//输出 outdata outlen 
+static void FrameStructure(u8* outdata, u8* outlen)
+{
+	u16 len = SedFrame.len;
+	u16 hard = SedFrame.hard;
+	u16 i;
+
+	outdata[0] = FRAME_HEX_HEADER;
+	outdata[1] = (u8)(len >> 8);
+	outdata[2] = (u8)len;
+	outdata[3] = SedFrame.type;
+	outdata[4] = SedFrame.version;
+	outdata[5] = (u8)(hard >> 8);
+	outdata[6] = (u8)hard;
+	for (i = 0; i < SedFrame.FrameData.len; i++)
+	{
+		outdata[i+7] = SedFrame.FrameData.data[i];
+	}
+	outdata[6 + SedFrame.FrameData.len] = FRAME_HEX_TAIL;
+}
+/*****************************以下为对应帧的处理和回复******************/
+/*收到握手帧的操作*/
+static void AppDataHandShake(void)
+{
+
+}
+/*收到心跳帧的操作*/
+static void AppDataHeartBeat(void)
+{
+
+}
+/*收到检测帧的操作*/
+static void AppDataDetection(void)
+{
+
+}
+/*收到测量中帧的操作*/
+static void AppDataMeasuring(void)
+{
+
+}
+/*收到测量结束帧的操作*/
+static void AppDataMeasureEnd(void)
+{
+
+}
+/*收到测量数据帧的操作*/
+static void AppDataMeasureData(void)
+{
+
+}
+/*收到测量查询帧的操作*/
+static void AppDataMeasureInquire(void)
+{
+
+}

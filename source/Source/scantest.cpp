@@ -27,11 +27,16 @@ ScanTest::ScanTest(QWidget *parent) :
 
 	QCheckBox* checkbox1 = ui->checkBox;
 	checkbox1->setCheckable(0);
-	checkbox1->setText(tr("初始化失败"));
+	//checkbox1->setText(tr("初始化失败"));
+
+	ButtonDis = ui->pushButton_2;
+	ButtonDis->setText(tr("Init Fail"));
+	ButtonDis2 = ui->pushButton_3;
+	ButtonDis2->setText(tr("Scanning..."));
 	
     lineedit1->setMaxLength(20);
     lineedit1->setFont(QFont("Timers",28,QFont::Bold));
-	QString info = QString("  %1 %2").arg(0xff, 0, 2).arg(0xff, 0, 2);
+	QString info = QString(" ");
     lineedit1->setText(info);
 
     lineedit2->setMaxLength(20);
@@ -85,7 +90,7 @@ void ScanTest::timerOutSed(void)
 void ScanTest::showValue(QByteArray value)
 {
     qDebug()<<"scantest show: "<<value;
-	QCheckBox* checkbox1 = ui->checkBox;
+	//QCheckBox* checkbox1 = ui->checkBox;
 	
 	if (value.size() > 22)
 	{
@@ -98,52 +103,145 @@ void ScanTest::showValue(QByteArray value)
 
 	if (value.at(value.size()-1) == 0)
 	{
-		checkbox1->setChecked(1);
-		checkbox1->setText(tr("初始化成功"));
+		ButtonDis->setText(tr("Init Success"));
 	}
 	else
 	{
-		checkbox1->setChecked(0);
-		checkbox1->setText(tr("初始化失败"));
+		ButtonDis->setText(tr("Init Failed"));
 
 	}
-    QLineEdit* lineedit1 = ui->lineEdit;
-	QString info = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(0)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(1)), 0, 2);
-    lineedit1->setText(info);
-
-	QLineEdit* lineedit2 = ui->lineEdit_2;
-	QString info2 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(2)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(3)), 0, 2);
-	lineedit2->setText(info2);
-
-	QLineEdit* lineedit3 = ui->lineEdit_3;
-	QString info3 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(4)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(5)), 0, 2);
-	lineedit3->setText(info3);
-
-	QLineEdit* lineedit4 = ui->lineEdit_4;
-	QString info4 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(6)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(7)), 0, 2);
-	lineedit4->setText(info4);
-
-	QLineEdit* lineedit5 = ui->lineEdit_5;
-	QString info5 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(8)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(9)), 0, 2);
-	lineedit5->setText(info5);
-
-	QLineEdit* lineedit6 = ui->lineEdit_6;
-	QString info6 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(10)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(11)), 0, 2);
-	lineedit6->setText(info6);
-
-	QLineEdit* lineedit7 = ui->lineEdit_7;
-	QString info7 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(12)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(13)), 0, 2);
-	lineedit7->setText(info7);
-
-	QLineEdit* lineedit8 = ui->lineEdit_8;
-	QString info8 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(14)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(15)), 0, 2);
-	lineedit8->setText(info8);
-
-	QLineEdit* lineedit9 = ui->lineEdit_9;
-	QString info9 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(16)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(17)), 0, 2);
-	lineedit9->setText(info9);
-
-	QLineEdit* lineedit10 = ui->lineEdit_10;
-	QString info10 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(18)), 0, 2).arg(static_cast<uint8_t>(scan_data.at(19)), 0, 2);
-	lineedit10->setText(info10);
+	if (LGJUpBound >= 2)
+	{
+		QLineEdit* lineedit1 = ui->lineEdit;
+		QString info = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(0)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(1)), 8, 2, QLatin1Char('0'));
+		lineedit1->setText(info);
+	}
+	if (LGJUpBound >= 4)
+	{
+		QLineEdit* lineedit2 = ui->lineEdit_2;
+		QString info2 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(2)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(3)), 8, 2, QLatin1Char('0'));
+		lineedit2->setText(info2);
+	}
+	if (LGJUpBound >= 6)
+	{
+		QLineEdit* lineedit3 = ui->lineEdit_3;
+		QString info3 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(4)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(5)), 8, 2, QLatin1Char('0'));
+		lineedit3->setText(info3);
+	}
+	if (LGJUpBound >= 8)
+	{
+		QLineEdit* lineedit4 = ui->lineEdit_4;
+		QString info4 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(6)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(7)), 8, 2, QLatin1Char('0'));
+		lineedit4->setText(info4);
+	}
+	if (LGJUpBound >= 10)
+	{
+		if (LGJUpBound == 10)
+		{
+			QLineEdit* lineedit5 = ui->lineEdit_5;
+			QString info5 = QString("  %1 ").arg(static_cast<uint8_t>(scan_data.at(8)), 8, 2, QLatin1Char('0'));
+			lineedit5->setText(info5);
+		}
+		else
+		{
+			QLineEdit* lineedit5 = ui->lineEdit_5;
+			QString info5 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(8)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(9)), 8, 2, QLatin1Char('0'));
+			lineedit5->setText(info5);
+		}
+	}
+	if (LGJUpBound >= 12)
+	{
+		if (LGJUpBound == 12)
+		{
+			QLineEdit* lineedit6 = ui->lineEdit_6;
+			QString info6 = QString("  %1 ").arg(static_cast<uint8_t>(scan_data.at(10)), 8, 2, QLatin1Char('0'));
+			lineedit6->setText(info6);
+		}
+		else
+		{
+			QLineEdit* lineedit7 = ui->lineEdit_7;
+			QString info7 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(10)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(11)), 8, 2, QLatin1Char('0'));
+			lineedit7->setText(info7);
+		}
+	}
+	else
+	{
+		return;
+	}
+	if (LGJUpBound >= 14)
+	{
+		if (LGJUpBound == 14)
+		{
+			QLineEdit* lineedit7 = ui->lineEdit_7;
+			QString info7 = QString("  %1 ").arg(static_cast<uint8_t>(scan_data.at(0)), 8, 2, QLatin1Char('0'));
+			lineedit7->setText(info7);
+		}
+		else
+		{
+			QLineEdit* lineedit7 = ui->lineEdit_7;
+			QString info7 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(0)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(13)), 8, 2, QLatin1Char('0'));
+			lineedit7->setText(info7);
+		}
+	}
+	else
+	{
+		return;
+	}
+	if (LGJUpBound >= 16)
+	{
+		if (LGJUpBound == 16)
+		{
+			QLineEdit* lineedit8 = ui->lineEdit_8;
+			QString info8 = QString("  %1 ").arg(static_cast<uint8_t>(scan_data.at(14)), 8, 2, QLatin1Char('0'));
+			lineedit8->setText(info8);
+		}
+		else
+		{
+			QLineEdit* lineedit8 = ui->lineEdit_8;
+			QString info8 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(14)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(15)), 8, 2, QLatin1Char('0'));
+			lineedit8->setText(info8);
+		}
+	}
+	else
+	{
+		return;
+	}
+	if (LGJUpBound >= 18)
+	{
+		if (LGJUpBound == 18)
+		{
+			QLineEdit* lineedit9 = ui->lineEdit_9;
+			QString info9 = QString("  %1 ").arg(static_cast<uint8_t>(scan_data.at(16)), 8, 2, QLatin1Char('0'));
+			lineedit9->setText(info9);
+		}
+		else
+		{
+			QLineEdit* lineedit9 = ui->lineEdit_9;
+			QString info9 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(16)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(17)), 8, 2, QLatin1Char('0'));
+			lineedit9->setText(info9);
+		}
+	}
+	else
+	{
+		return;
+	}
+	if (LGJUpBound >= 20)
+	{
+		if (LGJUpBound == 18)
+		{
+			QLineEdit* lineedit10 = ui->lineEdit_10;
+			QString info10 = QString("  %1 ").arg(static_cast<uint8_t>(scan_data.at(18)), 8, 2, QLatin1Char('0'));
+			lineedit10->setText(info10);
+		}
+		else
+		{
+			QLineEdit* lineedit10 = ui->lineEdit_10;
+			QString info10 = QString("  %1 %2").arg(static_cast<uint8_t>(scan_data.at(18)), 8, 2, QLatin1Char('0')).arg(static_cast<uint8_t>(scan_data.at(19)), 8, 2, QLatin1Char('0'));
+			lineedit10->setText(info10);
+		}
+	}
+	else
+	{
+		return;
+	}
 }

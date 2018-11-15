@@ -17,6 +17,9 @@ CMsgBusiness::CMsgBusiness(QObject *parent) : QObject(parent)
 	scan_data.clear();
 	sedFrame = { 0,0,static_cast<eFrameType>(0),0,0,0,0 };
 	sedArry = "cn";
+	rec_flag = 0;
+	//lenth = 0;	//要接收的数据帧数
+	accu_area = 0;
 }
 CMsgBusiness::~CMsgBusiness()
 {
@@ -40,7 +43,7 @@ QString CMsgBusiness::get(void) const
 	return str;
 }
 
-/*发送帧处理*/
+/*发送帧处理  此处的参数有重复 暂时保留*/
 void CMsgBusiness::sedDeal(eFrameType type,sFrameData data)
 {
 	sedFrame.header = FRAME_HEX_HEADER;
@@ -66,7 +69,13 @@ void CMsgBusiness::sedDeal(eFrameType type,sFrameData data)
 	case E_FRAME_DETECTION:
 	{
 		sedFrame.len = 0x05u;
-		sedFrame.FrameData.data[0] = 1;	//请求字节 1
+		sedFrame.FrameData.data[0] = data.data[0];	//请求字节 1
+		break;
+	}
+	case E_FRAME_MEASURING:
+	{
+		sedFrame.len = 0x05u;
+		sedFrame.FrameData.data[0] = data.data[0];	//回复字节 2
 		break;
 	}
 	default:
@@ -183,6 +192,7 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 	uint8_t ret = 0;
 	uint8_t type = frame.type;
 
+
 	switch (type)
 	{
 	case E_FRAME_HANDSHAKE:
@@ -296,6 +306,95 @@ uint8_t CMsgBusiness::appDeal(sFrame frame)
 		}
 		break;
 	}
+	case E_FRAME_MEASURING:
+	{
+		if (work_stage == E_WORK_STAGE)
+		{
+			if (versionJudgement(frame) == 1u)
+			{
+				if (frame.FrameData.data[0] == 0x01u)//请求字节为请求
+				{
+					rec_flag = 2;
+					//上发 显示测量中
+					dismsg.clear();
+					dismsg.append("mesuring");
+					emit signalSomethingComing(dismsg);
+					//下发 回复
+					sFrameData seddata = {1,2};//要发送的数据
+
+					sedDeal(E_FRAME_MEASURING, seddata);//发送结构体赋值函数
+					sedFramePack(sedFrame);//结构体打包成数组帧函数
+					emit signalToSend(sedArry);// 发送信号
+				}
+			}
+		}
+		break;
+	}
+	case E_FRAME_END_MEASURE:
+	{
+		if (work_stage == E_WORK_STAGE)
+		{
+			if (versionJudgement(frame) == 1u)
+			{
+				if (frame.FrameData.data[0] == 0x01u)//请求字节为请求
+				{
+					uint16_t len=0;
+
+					len |= 0xff00&(static_cast<uint16_t>(frame.FrameData.data[1]) << 8);
+					len |= 0x00ff&(static_cast<uint16_t>(frame.FrameData.data[2]));
+					qDebug() << len;
+					if (len < 1 || len >500)
+					{
+						qDebug() << "测量结束帧收到的数值不达标";
+						//下发 回复
+						sFrameData seddata = { 2,2,2 };//要发送的数据
+
+						sedDeal(E_FRAME_MEASURING, seddata);//发送结构体赋值函数
+						sedFramePack(sedFrame);//结构体打包成数组帧函数
+						emit signalToSend(sedArry);// 发送信号
+					}
+					else
+					{
+						//lenth = len;
+						//上发 显示测量中
+						dismsg.clear();
+						dismsg.append("end measure");
+						emit signalSomethingComing(dismsg);
+						//下发 回复
+						sFrameData seddata = { 2,2,1 };//要发送的数据
+
+						sedDeal(E_FRAME_MEASURING, seddata);//发送结构体赋值函数
+						sedFramePack(sedFrame);//结构体打包成数组帧函数
+						emit signalToSend(sedArry);// 发送信号
+					}
+				}
+			}
+		}
+		break;
+	}
+	case E_FRAME_DATA_MEASURE:
+	{
+		if (work_stage == E_WORK_STAGE)
+		{
+			if (versionJudgement(frame) == 1u)
+			{
+				if (frame.FrameData.data[0] == 0x01u)//请求字节为请求
+				{
+					accu_area |= static_cast<uint16_t>(frame.FrameData.data[1]) << 8;
+					accu_area |= static_cast<uint16_t>(frame.FrameData.data[2]);
+					rec_flag = 3;
+					//上发 显示测量中
+					dismsg.clear();
+					dismsg.append(0x66);
+					dismsg.append(6);
+					dismsg.append(accu_area);
+					emit signalSomethingComing(dismsg);
+					/*暂时使用了 帧号 加数据的方式 后面需要去写显示和接收处理的部分11/11*/
+				}
+			}
+		}
+		break;
+	}
 	default:
 		break;
 	}
@@ -374,3 +473,4 @@ void CMsgBusiness::FrameClear(sFrame* frame)
 	frame->FrameData.len = 0;
 	frame->tail = 0;
 }
+
